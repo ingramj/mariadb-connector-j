@@ -320,13 +320,13 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
     /**
      * Execute Query.
      *
-     * @param executionResult     result
      * @param query               query
+     * @param executionResult     result
      * @param resultSetScrollType one of the following <code>ResultSet</code> constants: <code>ResultSet.TYPE_FORWARD_ONLY</code>,
      *                            <code>ResultSet.TYPE_SCROLL_INSENSITIVE</code>, or <code>ResultSet.TYPE_SCROLL_SENSITIVE</code>
      * @throws QueryException if error occur
      */
-    public void executeQuery(ExecutionResult executionResult, Query query, int resultSetScrollType, int fetchSize) throws QueryException {
+    public void executeQuery(Query query, ExecutionResult executionResult, int resultSetScrollType, int fetchSize) throws QueryException {
         query.validate();
         executeQueryInternal(executionResult, new SendTextQueryPacket(query), resultSetScrollType, query);
     }
@@ -336,15 +336,15 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
      * This method is used when using text batch statement and using rewriting (allowMultiQueries || rewriteBatchedStatements).
      * queries will be send to server according to max_allowed_packet size.
      *
-     * @param executionResult     result
      * @param queries             list of queryes
+     * @param executionResult     result
      * @param resultSetScrollType one of the following <code>ResultSet</code> constants: <code>ResultSet.TYPE_FORWARD_ONLY</code>,
      *                            <code>ResultSet.TYPE_SCROLL_INSENSITIVE</code>, or <code>ResultSet.TYPE_SCROLL_SENSITIVE</code>
      * @param isRewritable        is rewritable flag
      * @param rewriteOffset       rewrite offset
      * @throws QueryException exception
      */
-    public void executeMultiQueries(ExecutionResult executionResult, Deque<Query> queries, int resultSetScrollType, boolean isRewritable,
+    public void executeMultiQueries(Deque<Query> queries, ExecutionResult executionResult, int resultSetScrollType, boolean isRewritable,
                                     int rewriteOffset) throws QueryException {
         for (Query query : queries) {
             query.validate();
@@ -376,13 +376,13 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
      * This method is used when using text batch statement and using rewriting (allowMultiQueries || rewriteBatchedStatements).
      * queries will be send to server according to max_allowed_packet size.
      *
+     * @param queries             list of queries
      * @param executionResult     result
-     * @param queries             list of queryes
      * @param resultSetScrollType one of the following <code>ResultSet</code> constants: <code>ResultSet.TYPE_FORWARD_ONLY</code>,
      *                            <code>ResultSet.TYPE_SCROLL_INSENSITIVE</code>, or <code>ResultSet.TYPE_SCROLL_SENSITIVE</code>
      * @throws QueryException exception
      */
-    public void executeQueries(ExecutionResult executionResult, Deque<Query> queries, int resultSetScrollType) throws QueryException {
+    public void executeQueries(Deque<Query> queries, ExecutionResult executionResult, int resultSetScrollType) throws QueryException {
         for (Query query : queries) {
             query.validate();
         }
@@ -572,17 +572,17 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
     }
 
     @Override
-    public void executePreparedQueryAfterFailover(ExecutionResult executionResult, String sql, ParameterHolder[] parameters,
+    public void executePreparedQueryAfterFailover(String sql, ExecutionResult executionResult, ParameterHolder[] parameters,
                                                   PrepareResult prepareResult, MariaDbType[] parameterTypeHeader, int resultSetScrollType)
             throws QueryException {
         PrepareResult prepareResultNew = prepare(sql);
-        executePreparedQuery(executionResult, sql, parameters, prepareResultNew, parameterTypeHeader,
+        executePreparedQuery(sql, executionResult, parameters, prepareResultNew, parameterTypeHeader,
                 resultSetScrollType);
         executionResult.setFailureObject(prepareResult);
     }
 
     @Override
-    public void executePreparedQuery(ExecutionResult executionResult, String sql, ParameterHolder[] parameters, PrepareResult prepareResult,
+    public void executePreparedQuery(String sql, ExecutionResult executionResult, ParameterHolder[] parameters, PrepareResult prepareResult,
                                      MariaDbType[] parameterTypeHeader, int resultSetScrollType) throws QueryException {
         checkClose();
         this.moreResults = false;

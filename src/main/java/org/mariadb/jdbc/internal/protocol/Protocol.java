@@ -133,17 +133,17 @@ public interface Protocol {
 
     ExecutionResult executeQuery(Query query) throws QueryException;
 
-    void executeQuery(ExecutionResult executionResult, Query query, int resultSetScrollType, int fetchSize) throws QueryException;
+    void executeQuery(Query query, ExecutionResult executionResult, int resultSetScrollType, int fetchSize) throws QueryException;
 
-    void executeMultiQueries(ExecutionResult executionResult, final Deque<Query> queries, int fetchSize, boolean isRewritable, int rewriteOffset)
+    void executeMultiQueries(final Deque<Query> queries, ExecutionResult executionResult, int fetchSize, boolean isRewritable, int rewriteOffset)
             throws QueryException;
 
-    void executeQueries(ExecutionResult executionResult, Deque<Query> queries, int resultSetScrollType) throws QueryException;
+    void executeQueries(Deque<Query> queries, ExecutionResult executionResult, int resultSetScrollType) throws QueryException;
 
-    void executePreparedQuery(ExecutionResult executionResult, String sql, ParameterHolder[] parameters, PrepareResult prepareResult,
+    void executePreparedQuery(String sql, ExecutionResult executionResult, ParameterHolder[] parameters, PrepareResult prepareResult,
                               MariaDbType[] parameterTypeHeader, int resultSetScrollType) throws QueryException;
 
-    void executePreparedQueryAfterFailover(ExecutionResult executionResult, String sql, ParameterHolder[] parameters, PrepareResult prepareResult,
+    void executePreparedQueryAfterFailover(String sql, ExecutionResult executionResult, ParameterHolder[] parameters, PrepareResult prepareResult,
                                            MariaDbType[] parameterTypeHeader, int resultSetScrollType) throws QueryException;
 
     void getResult(ExecutionResult executionResult, int resultSetScrollType, boolean binaryProtocol) throws QueryException;

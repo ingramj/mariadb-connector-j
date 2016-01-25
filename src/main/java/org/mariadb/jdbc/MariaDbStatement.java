@@ -259,7 +259,7 @@ public class MariaDbStatement implements Statement {
             executeQueryProlog();
             try {
                 SingleExecutionResult internalExecutionResult = new SingleExecutionResult(this, fetchSize, true);
-                protocol.executeQuery(internalExecutionResult, query, resultSetScrollType, fetchSize);
+                protocol.executeQuery(query, internalExecutionResult, resultSetScrollType, fetchSize);
                 cacheMoreResults(internalExecutionResult, fetchSize);
                 executionResult = internalExecutionResult;
                 return executionResult.getResult() != null;
@@ -1166,7 +1166,7 @@ public class MariaDbStatement implements Statement {
                     if (getProtocol().getOptions().allowMultiQueries || getProtocol().getOptions().rewriteBatchedStatements) {
                         boolean rewrittenBatch = isRewriteable && getProtocol().getOptions().rewriteBatchedStatements;
                         //fetch size is always set to 0 to permit to read result when rewritten.
-                        protocol.executeMultiQueries(internalExecutionResult, batchQueries, 0, rewrittenBatch,
+                        protocol.executeMultiQueries(batchQueries, internalExecutionResult, 0, rewrittenBatch,
                                 (rewrittenBatch && firstRewrite != null) ? firstRewrite.length() : 0);
                         cacheMoreResults(internalExecutionResult, 0);
                         if (rewrittenBatch) {
@@ -1177,7 +1177,7 @@ public class MariaDbStatement implements Statement {
                             internalExecutionResult.updateResultsMultiple(cachedExecutionResults);
                         }
                     } else {
-                        protocol.executeQueries(internalExecutionResult, batchQueries, resultSetScrollType);
+                        protocol.executeQueries(batchQueries, internalExecutionResult, resultSetScrollType);
                         cacheMoreResults(internalExecutionResult, 0);
                     }
                 } catch (QueryException e) {

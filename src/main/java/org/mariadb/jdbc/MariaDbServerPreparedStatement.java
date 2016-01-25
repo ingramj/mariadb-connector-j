@@ -223,7 +223,7 @@ public class MariaDbServerPreparedStatement extends AbstractMariaDbPrepareStatem
                 internalExecutionResult = new MultiIntExecutionResult(this, queryParameterSize, 0, false);
                 while ((parameters = queryParameters.poll()) != null) {
                     try {
-                        protocol.executePreparedQuery(internalExecutionResult, sql, parameters, prepareResult, parameterTypeHeader,
+                        protocol.executePreparedQuery(sql, internalExecutionResult, parameters, prepareResult, parameterTypeHeader,
                                 resultSetScrollType);
                         if (internalExecutionResult.getFailureObject() != null) {
                             prepareResult = internalExecutionResult.getFailureObject();
@@ -292,7 +292,7 @@ public class MariaDbServerPreparedStatement extends AbstractMariaDbPrepareStatem
             executeQueryProlog();
             try {
                 SingleExecutionResult internalExecutionResult = new SingleExecutionResult(this, getFetchSize(), true);
-                protocol.executePreparedQuery(internalExecutionResult, sql, currentParameterHolder, prepareResult, new MariaDbType[parameterCount],
+                protocol.executePreparedQuery(sql, internalExecutionResult, currentParameterHolder, prepareResult, new MariaDbType[parameterCount],
                         resultSetScrollType);
 
                 // in case of failover
