@@ -92,6 +92,8 @@ public abstract class ParameterHolder implements Cloneable {
 
     public abstract boolean isLongData();
 
+    public abstract boolean isNullParameter();
+    public abstract boolean isNotLongData();
 
     public abstract MariaDbType getMariaDbType();
 

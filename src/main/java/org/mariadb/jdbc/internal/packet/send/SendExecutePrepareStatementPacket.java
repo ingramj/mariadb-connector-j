@@ -97,7 +97,7 @@ public class SendExecutePrepareStatementPacket implements InterfaceSendPacket {
             int nullCount = (parameterCount + 7) / 8;
             byte[] nullBitsBuffer = new byte[nullCount];
             for (int i = 0; i < parameterCount; i++) {
-                if (parameters[i] instanceof NullParameter) {
+                if (parameters[i].isNullParameter()) {
                     nullBitsBuffer[i / 8] |= (1 << (i % 8));
                 }
             }
@@ -128,7 +128,7 @@ public class SendExecutePrepareStatementPacket implements InterfaceSendPacket {
             }
         }
         for (int i = 0; i < parameterCount; i++) {
-            if (parameters[i] instanceof NotLongDataParameterHolder) {
+            if (parameters[i].isNotLongData()) {
                 ((NotLongDataParameterHolder) parameters[i]).writeBinary(buffer);
             }
         }

@@ -650,41 +650,6 @@ public class ServerPrepareStatementTest extends BaseTest {
     }
 
     @Test
-    public void testCache() throws SQLException {
-        try (Connection connection = setConnection()) {
-            final String query = "INSERT INTO ServerPrepareStatementPrepareCache(test) VALUES (?)";
-            final long startTime = System.nanoTime();
-            PreparedStatement pstmt = connection.prepareStatement(query);
-            pstmt.setString(1, "test1");
-            pstmt.execute();
-            final long executionTime = System.nanoTime() - startTime;
-
-            final long startTimeSecond = System.nanoTime();
-            PreparedStatement pstmt2 = connection.prepareStatement(query);
-            pstmt2.setString(1, "test2");
-            pstmt2.execute();
-            final long executionTimeSecond = System.nanoTime() - startTimeSecond;
-
-            System.out.println("total time : " + (executionTimeSecond) + " first : " + executionTime);
-            Assert.assertTrue(executionTimeSecond  < executionTime);
-
-            ResultSet resultSet = connection.createStatement().executeQuery("SELECT * FROM ServerPrepareStatementPrepareCache");
-            if (resultSet.next()) {
-                Assert.assertEquals("test1", resultSet.getString(2));
-                if (resultSet.next()) {
-                    Assert.assertEquals("test2", resultSet.getString(2));
-                } else {
-                    Assert.fail("Must have a result");
-                }
-            } else {
-                Assert.fail("Must have a result");
-            }
-        }
-    }
-
-
-
-    @Test
     public void testPrepareStatementCache() throws Throwable {
         //tester le cache prepareStatement
         try (Connection connection = setConnection()) {

@@ -488,12 +488,12 @@ public final class MariaDbConnection implements Connection {
                     cloneNotSupportedException.printStackTrace();
                 }
             }
-            CallableStatement callableStatement = createNewCallableStatement(query, procedureName, isFunction, databaseAndProcedure, database,
+            CallableStatement callableStatement = createNewCallableStatement(matcher, query, procedureName, isFunction, databaseAndProcedure, database,
                     arguments);
             callableStatementCache.put(new CallableStatementCacheKey(database, query), callableStatement);
             return callableStatement;
         }
-        return createNewCallableStatement(query, procedureName, isFunction, databaseAndProcedure, database, arguments);
+        return createNewCallableStatement(matcher, query, procedureName, isFunction, databaseAndProcedure, database, arguments);
     }
 
 
@@ -545,13 +545,17 @@ public final class MariaDbConnection implements Connection {
         return prepareCall(sql);
     }
 
-    private CallableStatement createNewCallableStatement(String query, String procedureName, boolean isFunction, String databaseAndProcedure,
+    private CallableStatement createNewCallableStatement(Matcher matcher, String query, String procedureName, boolean isFunction, String databaseAndProcedure,
                                                          String database, String arguments) throws SQLException {
         if (arguments == null) {
             arguments = "()";
         }
         if (isFunction) {
-            return new MariaDbFunctionStatement(this, database, databaseAndProcedure, arguments);
+            String comment = ((matcher.group(2) == null) ? "" : matcher.group(2))
+                           + ((matcher.group(4) == null) ? "" : matcher.group(4))
+                           + ((matcher.group(15) == null) ? "" : matcher.group(15))
+                           + ((matcher.group(17) == null) ? "" : matcher.group(17));
+            return new MariaDbFunctionStatement(this, database, databaseAndProcedure, arguments, comment);
         } else {
             return new MariaDbProcedureStatement(query, this, procedureName, database, arguments);
         }

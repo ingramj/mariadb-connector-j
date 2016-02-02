@@ -515,7 +515,6 @@ public class CallableStatementTest extends BaseTest {
 
     @Test
     public void testHugeNumberOfParameters() throws Exception {
-
         StringBuilder procDef = new StringBuilder("(");
         StringBuilder param = new StringBuilder();
         for (int i = 0; i < 274; i++) {
@@ -843,13 +842,11 @@ public class CallableStatementTest extends BaseTest {
         createTable("testCallableThrowException2", "value_2 BIGINT PRIMARY KEY", "ENGINE=InnoDB");
 
         sharedConnection.createStatement().executeUpdate("INSERT INTO testCallableThrowException1 VALUES (1)");
-        createFunction("test_function", "() RETURNS BIGINT DETERMINISTIC MODIFIES SQL DATA BEGIN DECLARE max_value BIGINT; "
+        createFunction("functionThrowException", "() RETURNS BIGINT DETERMINISTIC MODIFIES SQL DATA BEGIN DECLARE max_value BIGINT; "
                 + "SELECT MAX(value_1) INTO max_value FROM testCallableThrowException2; RETURN max_value; END;");
 
-        try (CallableStatement callable = sharedConnection.prepareCall("{? = call test_function()}")) {
-
+        try (CallableStatement callable = sharedConnection.prepareCall("{? = call functionThrowException()}")) {
             callable.registerOutParameter(1, Types.BIGINT);
-
             try {
                 callable.executeUpdate();
                 fail("impossible; we should never get here.");
@@ -858,15 +855,14 @@ public class CallableStatementTest extends BaseTest {
             }
         }
 
-        sharedConnection.createStatement().execute("DROP TABLE IF EXISTS testCallableThrowException4");
         createTable("testCallableThrowException3", "value_1 BIGINT PRIMARY KEY", "ENGINE=InnoDB");
         sharedConnection.createStatement().executeUpdate("INSERT INTO testCallableThrowException3 VALUES (1)");
         createTable("testCallableThrowException4", "value_2 BIGINT PRIMARY KEY, "
                 + " FOREIGN KEY (value_2) REFERENCES testCallableThrowException3 (value_1) ON DELETE CASCADE", "ENGINE=InnoDB");
-        createFunction("test_function", "(value BIGINT) RETURNS BIGINT DETERMINISTIC MODIFIES SQL DATA BEGIN "
+        createFunction("functionThrowException", "(value BIGINT) RETURNS BIGINT DETERMINISTIC MODIFIES SQL DATA BEGIN "
                 + "INSERT INTO testCallableThrowException4 VALUES (value); RETURN value; END;");
 
-        try (CallableStatement callable = sharedConnection.prepareCall("{? = call test_function(?)}")) {
+        try (CallableStatement callable = sharedConnection.prepareCall("{? = call functionThrowException(?)}")) {
             callable.registerOutParameter(1, Types.BIGINT);
             callable.setLong(2, 1);
             callable.executeUpdate();
@@ -877,6 +873,21 @@ public class CallableStatementTest extends BaseTest {
             } catch (SQLException sqlEx) {
                 assertEquals("23000", sqlEx.getSQLState());
             }
+        }
+        sharedConnection.createStatement().execute("DROP TABLE testCallableThrowException4");
+        sharedConnection.createStatement().execute("DROP TABLE testCallableThrowException3");
+    }
+
+    @Test
+    public void testFunctionComment() throws Exception {
+        createFunction("testFunctionComment", "() RETURNS BIGINT DETERMINISTIC MODIFIES SQL DATA BEGIN DECLARE max_value BIGINT; "
+                + "RETURN 1; END;");
+
+        try (CallableStatement callable = sharedConnection.prepareCall("{? = /*comment?*/ call /*comment2?*/ testFunctionComment() /*comment3?*/ } #comment4 ?")) {
+            callable.registerOutParameter(1, Types.BIGINT);
+            callable.executeUpdate();
+            assertEquals("SELECT testFunctionComment()  /*comment?*/ /*comment2?*/ /*comment3?*/#comment4 ?",
+                    callable.toString());
         }
     }
 
@@ -890,15 +901,12 @@ public class CallableStatementTest extends BaseTest {
         sharedConnection.createStatement().executeUpdate("insert into Bit_Tab values(1,0,null)");
         CallableStatement callableStatement = sharedConnection.prepareCall("{call Bit_Proc(?,?,?)}");
 
-        System.out.println("register the output parameters");
         callableStatement.registerOutParameter(1, java.sql.Types.BIT);
         callableStatement.registerOutParameter(2, java.sql.Types.BIT);
         callableStatement.registerOutParameter(3, java.sql.Types.BIT);
 
-        System.out.println("execute the procedure");
         callableStatement.executeUpdate();
 
-        System.out.println("invoke getBoolean method");
         Boolean returnValue = new Boolean(callableStatement.getBoolean(2));
         Boolean minBooleanVal = new Boolean("false");
         ResultSet rs = sharedConnection.createStatement().executeQuery("SELECT MIN_VAL from Bit_Tab");

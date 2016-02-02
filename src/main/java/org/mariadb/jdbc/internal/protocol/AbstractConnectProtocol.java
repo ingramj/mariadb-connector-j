@@ -784,7 +784,7 @@ public abstract class AbstractConnectProtocol implements Protocol {
                     throw new QueryException("Packets out of order when reading field packets, expected was EOF stream. "
                             + "Packet contents (hex) = " + MasterProtocol.hexdump(bufferEof, 0));
                 }
-                MariaSelectResultSet resultSet = new MariaSelectResultSet(ci, null, this, packetFetcher, false, ResultSet.TYPE_FORWARD_ONLY, 0);
+                MariaSelectResultSet resultSet = new MariaSelectResultSet(ci, null, this, packetFetcher, false, ResultSet.TYPE_FORWARD_ONLY, 0, false);
                 resultSet.initFetch();
                 return resultSet;
             } catch (IOException e) {

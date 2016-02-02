@@ -75,11 +75,19 @@ public class NullParameter extends ParameterHolder {
         return 4;
     }
 
+    @Override
+    public boolean isNullParameter() {
+        return true;
+    }
 
     @Override
     public boolean isLongData() {
         return false;
     }
+
+    @Override
+    public boolean isNotLongData() { return false;}
+
 
     public MariaDbType getMariaDbType() {
         return type;

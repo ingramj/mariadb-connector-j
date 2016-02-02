@@ -102,10 +102,11 @@ public class MariaSelectResultSet extends AbstractSelectResultSet {
      * @param resultSetScrollType  one of the following <code>ResultSet</code> constants: <code>ResultSet.TYPE_FORWARD_ONLY</code>,
      * <code>ResultSet.TYPE_SCROLL_INSENSITIVE</code>, or <code>ResultSet.TYPE_SCROLL_SENSITIVE</code>
      * @param fetchSize current fetch size
+     * @param callableResult is it a callableResult
      */
     public MariaSelectResultSet(ColumnInformation[] columnInformation, Statement statement, Protocol protocol,
                                 ReadPacketFetcher fetcher, boolean binaryProtocol,
-                                int resultSetScrollType, int fetchSize) {
+                                int resultSetScrollType, int fetchSize, boolean callableResult) {
         super(columnInformation, protocol, statement);
         this.columnInformationLength = columnInformation.length;
         this.packetFetcher = fetcher;
@@ -116,6 +117,7 @@ public class MariaSelectResultSet extends AbstractSelectResultSet {
         this.resultSet = new ArrayList<>();
         this.dataFetchTime = 0;
         this.rowPointer = -1;
+        this.callableResult = callableResult;
     }
 
     /**
@@ -269,9 +271,8 @@ public class MariaSelectResultSet extends AbstractSelectResultSet {
         }
 
         MariaSelectResultSet mariaSelectResultset = new MariaSelectResultSet(ci, statement, protocol, packetFetcher,
-                binaryProtocol, resultSetScrollType, fetchSize);
+                binaryProtocol, resultSetScrollType, fetchSize, callableResult);
         mariaSelectResultset.initFetch();
-        mariaSelectResultset.setCallableResult(callableResult);
         return mariaSelectResultset;
     }
 
@@ -350,7 +351,12 @@ public class MariaSelectResultSet extends AbstractSelectResultSet {
                 protocol.setActiveResult(null);
             }
             protocol.setHasWarnings(endOfFilePacket.getWarningCount() > 0);
-            protocol.setMoreResults((endOfFilePacket.getStatusFlags() & ServerStatus.MORE_RESULTS_EXISTS) != 0, binaryProtocol);
+
+            //force the more packet value when this is a callable output result.
+            //There is always a OK packet after a callable ouput result, but mysql 5.6-7
+            //is sending a bad "more result" flag (without setting more packet to true)
+            //so force the value, since this will corrupt connection.
+            protocol.setMoreResults(callableResult || (endOfFilePacket.getStatusFlags() & ServerStatus.MORE_RESULTS_EXISTS) != 0, binaryProtocol);
             protocol = null;
             packetFetcher = null;
             isEof = true;
