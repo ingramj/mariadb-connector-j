@@ -198,6 +198,8 @@ public interface Protocol {
 
     void releasePrepareStatement(String sql, int statementId) throws QueryException;
 
+    void forceReleasePrepareStatement(int statementId) throws QueryException;
+
     PrepareStatementCache prepareStatementCache();
 
 
@@ -215,6 +217,6 @@ public interface Protocol {
 
     void getMoreResults(ExecutionResult executionResult) throws QueryException;
 
-    void setMoreResults(boolean moreResults);
+    void setMoreResults(boolean moreResults, boolean moreResultsTypeBinary);
 
 }

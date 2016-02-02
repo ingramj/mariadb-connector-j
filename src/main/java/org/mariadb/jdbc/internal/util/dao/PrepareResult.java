@@ -52,10 +52,11 @@ package org.mariadb.jdbc.internal.util.dao;
 import org.mariadb.jdbc.internal.packet.dao.ColumnInformation;
 
 public class PrepareResult {
-    public int statementId;
-    public ColumnInformation[] columns;
-    public ColumnInformation[] parameters;
-    private int useTime = 1;
+    private final int statementId;
+    private final ColumnInformation[] columns;
+    private final ColumnInformation[] parameters;
+    private volatile int useTime = 1;
+    private volatile boolean isClosing;
 
     /**
      * PrepareStatement Result object.
@@ -69,20 +70,48 @@ public class PrepareResult {
         this.parameters = parameters;
     }
 
-    public synchronized void addUse() {
+    /**
+     * Increment use counter.
+     * @return true if can be used.
+     */
+    public synchronized boolean addUse() {
+        if (isClosing) {
+            return false;
+        }
         useTime++;
+        return true;
     }
 
     public synchronized void removeUse() {
         useTime--;
     }
 
-    public synchronized boolean hasToBeClose() {
-        return useTime <= 0;
+    /**
+     * Asked if closable, set flag closing when possible.
+     * @return true if closable.
+     */
+    public synchronized boolean setClosedIfUnused() {
+        if (useTime > 0) {
+            return false;
+        }
+        isClosing = true;
+        return true;
     }
 
     //for test unit
     public synchronized int getUseTime() {
         return useTime;
+    }
+
+    public int getStatementId() {
+        return statementId;
+    }
+
+    public ColumnInformation[] getColumns() {
+        return columns;
+    }
+
+    public ColumnInformation[] getParameters() {
+        return parameters;
     }
 }

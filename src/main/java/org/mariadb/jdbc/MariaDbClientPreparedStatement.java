@@ -58,10 +58,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Calendar;
 
-public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatement {
+public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatement implements Cloneable {
     private final String sqlQuery;
     boolean parametersCleared;
-    private MariaDbClientParameterizeQuery query;
+    protected MariaDbClientParameterizeQuery query;
     private ResultSetMetaData resultSetMetaData = null;
     private ParameterMetaData parameterMetaData = null;
 
@@ -92,6 +92,21 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
         parametersCleared = true;
     }
 
+    /**
+     * Clone statement.
+     *
+     * @return Clone statement.
+     * @throws CloneNotSupportedException if any error occur.
+     */
+    public MariaDbClientPreparedStatement clone() throws CloneNotSupportedException {
+        MariaDbClientPreparedStatement clone = (MariaDbClientPreparedStatement) super.clone();
+        clone.query = query;
+        clone.resultSetMetaData = resultSetMetaData;
+        clone.parameterMetaData = parameterMetaData;
+        clone.parametersCleared = true;
+        return clone;
+    }
+
     @Override
     protected boolean isNoBackslashEscapes() {
         return connection.noBackslashEscapes;
@@ -105,6 +120,10 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
     @Override
     protected Calendar cal() {
         return protocol.getCalendar();
+    }
+
+    protected ParameterHolder getCurrentParameterHolder(final int parameterIndex) {
+        return query.getParameters()[parameterIndex];
     }
 
     /**
@@ -147,7 +166,7 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
      * @see java.sql.Statement#getMoreResults
      */
     public boolean execute() throws SQLException {
-        return execute(query);
+        return execute(query, fetchSize);
     }
 
     /**
@@ -292,6 +311,10 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
                 || connection.pooledConnection.statementEventListeners.isEmpty()) {
             return;
         }
+    }
+
+    protected int getParameterCount() {
+        return query.getParamCount();
     }
 
     public String toString() {

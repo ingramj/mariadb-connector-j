@@ -4,7 +4,7 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mariadb.jdbc.internal.util.dao.PrepareResult;
+import org.mariadb.jdbc.internal.protocol.MasterProtocol;
 import org.mariadb.jdbc.internal.protocol.Protocol;
 
 import java.io.*;
@@ -42,6 +42,7 @@ public class ServerPrepareStatementTest extends BaseTest {
                 "ROW_FORMAT=COMPRESSED ENGINE=INNODB");
         createTable("streamtest2", "id int primary key not null, strm text");
         createTable("testServerPrepareMeta", "id int not null primary key auto_increment, id2 int not null, id3 DEC(4,2), id4 BIGINT UNSIGNED ");
+        createTable("ServerPrepareStatementPrepareCache", "id int not null primary key auto_increment, test varchar(20)");
     }
 
     @Test
@@ -110,7 +111,7 @@ public class ServerPrepareStatementTest extends BaseTest {
             for (int i = 0; i < 20; i++) {
                 sts[i].close();
             }
-            assertTrue(protocol.prepareStatementCache().size() == 0);
+            assertTrue(protocol.prepareStatementCache().size() == 10);
         } finally {
             connection.close();
         }
@@ -647,4 +648,60 @@ public class ServerPrepareStatementTest extends BaseTest {
             }
         }
     }
+
+    @Test
+    public void testCache() throws SQLException {
+        try (Connection connection = setConnection()) {
+            final String query = "INSERT INTO ServerPrepareStatementPrepareCache(test) VALUES (?)";
+            final long startTime = System.nanoTime();
+            PreparedStatement pstmt = connection.prepareStatement(query);
+            pstmt.setString(1, "test1");
+            pstmt.execute();
+            final long executionTime = System.nanoTime() - startTime;
+
+            final long startTimeSecond = System.nanoTime();
+            PreparedStatement pstmt2 = connection.prepareStatement(query);
+            pstmt2.setString(1, "test2");
+            pstmt2.execute();
+            final long executionTimeSecond = System.nanoTime() - startTimeSecond;
+
+            System.out.println("total time : " + (executionTimeSecond) + " first : " + executionTime);
+            Assert.assertTrue(executionTimeSecond  * 1.2 < executionTime);
+
+            ResultSet resultSet = connection.createStatement().executeQuery("SELECT * FROM ServerPrepareStatementPrepareCache");
+            if (resultSet.next()) {
+                Assert.assertEquals("test1", resultSet.getString(2));
+                if (resultSet.next()) {
+                    Assert.assertEquals("test2", resultSet.getString(2));
+                } else {
+                    Assert.fail("Must have a result");
+                }
+            } else {
+                Assert.fail("Must have a result");
+            }
+        }
+    }
+
+
+
+    @Test
+    public void testPrepareStatementCache() throws Throwable {
+        //tester le cache prepareStatement
+        try (Connection connection = setConnection()) {
+            MasterProtocol protocol = (MasterProtocol) getProtocolFromConnection(connection);
+            createTable("test_cache_table1", "id1 int auto_increment primary key, text1 varchar(20), text2 varchar(20)");
+            PreparedStatement[] map = new PreparedStatement[280];
+            for (int i = 0; i < 280; i++) {
+                map[i] = connection.prepareStatement(
+                        "INSERT INTO test_cache_table1 (text1, text2) values (" + i + ", ?)");
+                if (i < 250) {
+                    Assert.assertEquals(i + 1, protocol.getPrepareStatementCache().size());
+                } else {
+                    Assert.assertEquals(250, protocol.getPrepareStatementCache().size());
+                }
+            }
+        }
+    }
+
+
 }

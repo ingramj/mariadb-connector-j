@@ -131,7 +131,8 @@ public abstract class AbstractConnectProtocol implements Protocol {
     protected MariaDbCharset charset;
     protected PrepareStatementCache prepareStatementCache;
 
-    public boolean moreResults = false;
+    private boolean moreResults = false;
+    public boolean moreResultsTypeBinary = false;
     public boolean hasWarnings = false;
     public MariaSelectResultSet activeResult = null;
     public int dataTypeMappingFlags;
@@ -151,7 +152,7 @@ public abstract class AbstractConnectProtocol implements Protocol {
         this.username = (urlParser.getUsername() == null ? "" : urlParser.getUsername());
         this.password = (urlParser.getPassword() == null ? "" : urlParser.getPassword());
         if (urlParser.getOptions().cachePrepStmts) {
-            prepareStatementCache = PrepareStatementCache.newInstance(urlParser.getOptions().prepStmtCacheSize);
+            prepareStatementCache = PrepareStatementCache.newInstance(urlParser.getOptions().prepStmtCacheSize, this);
         }
         setDataTypeMappingFlags();
     }
@@ -169,16 +170,22 @@ public abstract class AbstractConnectProtocol implements Protocol {
         }
 
         while (moreResults) {
-            SingleExecutionResult execution = new SingleExecutionResult(null, 0, true);
+            SingleExecutionResult execution = new SingleExecutionResult(null, 0, true, false);
             getMoreResults(execution);
         }
     }
 
     public abstract void getMoreResults(ExecutionResult executionResult) throws QueryException;
 
-    public void setMoreResults(boolean moreResults) {
+    public void setMoreResults(boolean moreResults, boolean isBinary) {
         this.moreResults = moreResults;
+        this.moreResultsTypeBinary = isBinary;
     }
+
+    public void resetMoreResults() {
+        this.moreResults = false;
+    }
+
     /**
      * Closes socket and stream readers/writers Attempts graceful shutdown.
      */
@@ -507,6 +514,7 @@ public abstract class AbstractConnectProtocol implements Protocol {
                         | MariaDbServerCapabilities.SECURE_CONNECTION
                         | MariaDbServerCapabilities.LOCAL_FILES
                         | MariaDbServerCapabilities.MULTI_RESULTS
+                        | MariaDbServerCapabilities.PS_MULTI_RESULTS
                         | MariaDbServerCapabilities.FOUND_ROWS;
 
 
@@ -928,5 +936,14 @@ public abstract class AbstractConnectProtocol implements Protocol {
     @Override
     public ReentrantLock getLock() {
         return lock;
+    }
+
+    @Override
+    public boolean hasMoreResults() {
+        return moreResults;
+    }
+
+    public PrepareStatementCache getPrepareStatementCache() {
+        return prepareStatementCache;
     }
 }

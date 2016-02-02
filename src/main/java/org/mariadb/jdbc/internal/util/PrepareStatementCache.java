@@ -49,21 +49,26 @@ OF SUCH DAMAGE.
 
 package org.mariadb.jdbc.internal.util;
 
+import org.mariadb.jdbc.internal.protocol.Protocol;
 import org.mariadb.jdbc.internal.util.dao.PrepareResult;
+import org.mariadb.jdbc.internal.util.dao.PrepareStatementCacheKey;
+import org.mariadb.jdbc.internal.util.dao.QueryException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class PrepareStatementCache extends LinkedHashMap<String, PrepareResult> {
+public class PrepareStatementCache extends LinkedHashMap<PrepareStatementCacheKey, PrepareResult> {
     private int maxSize;
+    private Protocol protocol;
 
-    private PrepareStatementCache(int size) {
+    private PrepareStatementCache(int size, Protocol protocol) {
         super(size, .75f, true);
         maxSize = size;
+        this.protocol = protocol;
     }
 
-    public static PrepareStatementCache newInstance(int size) {
-        return new PrepareStatementCache(size);
+    public static PrepareStatementCache newInstance(int size, Protocol protocol) {
+        return new PrepareStatementCache(size, protocol);
     }
 
     /**
@@ -72,16 +77,25 @@ public class PrepareStatementCache extends LinkedHashMap<String, PrepareResult> 
      * @param value prepareResult
      * @return PrepareResult to avoid to prepare statement.
      */
-    public PrepareResult putIfNone(String key, PrepareResult value) {
-        if (!containsKey(key)) {
-            put(key, value);
-        }
+    public PrepareResult putIfNone(PrepareStatementCacheKey key, PrepareResult value) {
+        put(key, value);
         return value;
     }
 
     @Override
-    protected boolean removeEldestEntry(Map.Entry<String, PrepareResult> eldest) {
-        return this.size() > maxSize;
+    protected synchronized boolean removeEldestEntry(Map.Entry<PrepareStatementCacheKey, PrepareResult> eldest) {
+        if (this.size() > maxSize) {
+            if (eldest.getValue().setClosedIfUnused()) {
+                // not used anymore.
+                try {
+                    protocol.forceReleasePrepareStatement(eldest.getValue().getStatementId());
+                } catch (QueryException e) {
+                    //eat exception
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
 }

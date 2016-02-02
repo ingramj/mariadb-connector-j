@@ -8,6 +8,7 @@ import org.mariadb.jdbc.internal.queryresults.resultset.MariaSelectResultSet;
 import org.mariadb.jdbc.internal.stream.MaxAllowedPacketException;
 import org.mariadb.jdbc.internal.util.ExceptionMapper;
 import org.mariadb.jdbc.internal.util.PrepareStatementCache;
+import org.mariadb.jdbc.internal.util.dao.PrepareStatementCacheKey;
 import org.mariadb.jdbc.internal.util.dao.QueryException;
 import org.mariadb.jdbc.internal.util.constant.ServerStatus;
 import org.mariadb.jdbc.internal.util.buffer.Reader;
@@ -140,10 +141,12 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
     public PrepareResult prepare(String sql) throws QueryException {
         checkClose();
         try {
-            if (urlParser.getOptions().cachePrepStmts && prepareStatementCache.containsKey(sql)) {
-                PrepareResult pr = prepareStatementCache.get(sql);
-                pr.addUse();
-                return pr;
+            PrepareStatementCacheKey prepareStatementCacheKey = new PrepareStatementCacheKey(database, sql);
+            if (urlParser.getOptions().cachePrepStmts && prepareStatementCache.containsKey(prepareStatementCacheKey)) {
+                PrepareResult pr = prepareStatementCache.get(prepareStatementCacheKey);
+                if (pr.addUse()) {
+                    return pr;
+                }
             }
 
             SendPrepareStatementPacket sendPrepareStatementPacket = new SendPrepareStatementPacket(sql);
@@ -184,9 +187,8 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
                 }
                 PrepareResult prepareResult = new PrepareResult(statementId, columns, params);
                 if (urlParser.getOptions().cachePrepStmts && sql != null && sql.length() < urlParser.getOptions().prepStmtCacheSqlLimit) {
-                    prepareStatementCache.putIfNone(sql, prepareResult);
+                    prepareStatementCache.put(prepareStatementCacheKey, prepareResult);
                 }
-//                if (log.isDebugEnabled()) log.debug("prepare statementId : " + prepareResult.statementId);
                 return prepareResult;
             } else {
                 throw new QueryException("Unexpected packet returned by server, first byte " + bit);
@@ -231,11 +233,6 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
         return ((serverStatus & ServerStatus.IN_TRANSACTION) != 0);
     }
 
-
-    @Override
-    public boolean hasMoreResults() {
-        return moreResults;
-    }
 
     public void closeExplicit() {
         this.explicitClosed = true;
@@ -312,7 +309,7 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
     @Override
     public ExecutionResult executeQuery(Query query) throws QueryException {
         query.validate();
-        ExecutionResult executionResult = new SingleExecutionResult(null, 0, true);
+        ExecutionResult executionResult = new SingleExecutionResult(null, 0, true, false);
         executeQueryInternal(executionResult, new SendTextQueryPacket(query), ResultSet.TYPE_FORWARD_ONLY, query);
         return executionResult;
     }
@@ -423,7 +420,7 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
             throws QueryException {
         checkClose();
         try {
-            this.moreResults = false;
+            resetMoreResults();
             packet.send(writer);
             getResult(executionResult, resultSetScrollType, false);
         } catch (MaxAllowedPacketException e) {
@@ -534,7 +531,7 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
 
         switch (resultPacket.getResultType()) {
             case ERROR:
-                this.moreResults = false;
+                this.resetMoreResults();
                 this.hasWarnings = false;
                 executionResult.addStatsError();
                 ErrorPacket ep = (ErrorPacket) resultPacket;
@@ -543,9 +540,9 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
             case OK:
                 final OkPacket okpacket = (OkPacket) resultPacket;
                 serverStatus = okpacket.getServerStatus();
-                this.moreResults = ((serverStatus & ServerStatus.MORE_RESULTS_EXISTS) != 0);
+                this.setMoreResults((serverStatus & ServerStatus.MORE_RESULTS_EXISTS) != 0, binaryProtocol);
                 this.hasWarnings = (okpacket.getWarnings() > 0);
-                executionResult.addStats(okpacket.getAffectedRows(), okpacket.getInsertId(), this.moreResults);
+                executionResult.addStats(okpacket.getAffectedRows(), okpacket.getInsertId(), hasMoreResults());
                 break;
             case RESULTSET:
                 this.hasWarnings = false;
@@ -553,11 +550,12 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
 
                 try {
                     MariaSelectResultSet mariaSelectResultSet = MariaSelectResultSet.createResult(executionResult.getStatement(), resultSetPacket,
-                            packetFetcher, this, binaryProtocol, resultSetScrollType, executionResult.getFetchSize());
+                            packetFetcher, this, binaryProtocol, resultSetScrollType, executionResult.getFetchSize(),
+                            executionResult.isCanHaveCallableResultset());
                     if (!executionResult.isSelectPossible()) {
                         throw new QueryException("Select command are not permitted via executeBatch() command");
                     }
-                    executionResult.addResult(mariaSelectResultSet, moreResults);
+                    executionResult.addResult(mariaSelectResultSet, hasMoreResults());
                 } catch (IOException e) {
                     throw new QueryException("Could not read result set: " + e.getMessage(),
                             -1,
@@ -585,19 +583,19 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
     public void executePreparedQuery(String sql, ExecutionResult executionResult, ParameterHolder[] parameters, PrepareResult prepareResult,
                                      MariaDbType[] parameterTypeHeader, int resultSetScrollType) throws QueryException {
         checkClose();
-        this.moreResults = false;
+        this.resetMoreResults();
         try {
             int parameterCount = parameters.length;
             //send binary data in a separate stream
             for (int i = 0; i < parameterCount; i++) {
                 if (parameters[i].isLongData()) {
                     SendPrepareParameterPacket sendPrepareParameterPacket = new SendPrepareParameterPacket(i, (LongDataParameterHolder) parameters[i],
-                            prepareResult.statementId, charset);
+                            prepareResult.getStatementId(), charset);
                     sendPrepareParameterPacket.send(writer);
                 }
             }
             //send execute query
-            SendExecutePrepareStatementPacket packet = new SendExecutePrepareStatementPacket(prepareResult.statementId, parameters,
+            SendExecutePrepareStatementPacket packet = new SendExecutePrepareStatementPacket(prepareResult.getStatementId(), parameters,
                     parameterCount, parameterTypeHeader);
             packet.send(writer);
             getResult(executionResult, resultSetScrollType, true);
@@ -630,17 +628,30 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
 
     @Override
     public void releasePrepareStatement(String sql, int statementId) throws QueryException {
+        PrepareStatementCacheKey prepareStatementCacheKey = new PrepareStatementCacheKey(database, sql);
+        if (urlParser.getOptions().cachePrepStmts && prepareStatementCache.containsKey(prepareStatementCacheKey)) {
+            PrepareResult pr = prepareStatementCache.get(prepareStatementCacheKey);
+            if (pr != null) {
+                pr.removeUse();
+            }
+        } else {
+            forceReleasePrepareStatement(statementId);
+        }
+    }
+
+    /**
+     * Force release of prepare statement that are not used.
+     * This method will be call when adding a new preparestatement in cache, so the packet can be send to server without
+     * problem.
+     *
+     * @param statementId prepared statement Id to remove.
+     * @throws QueryException if connection exception.
+     */
+    @Override
+    public void forceReleasePrepareStatement(int statementId) throws QueryException {
         checkClose();
         lock.lock();
         try {
-            if (urlParser.getOptions().cachePrepStmts && prepareStatementCache.containsKey(sql)) {
-                PrepareResult pr = prepareStatementCache.get(sql);
-                pr.removeUse();
-                if (!pr.hasToBeClose()) {
-                    return;
-                }
-                prepareStatementCache.remove(sql);
-            }
             final SendClosePrepareStatementPacket packet = new SendClosePrepareStatementPacket(statementId);
             try {
                 packet.send(writer);
@@ -671,10 +682,10 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
 
     @Override
     public void getMoreResults(ExecutionResult executionResult) throws QueryException {
-        if (!moreResults) {
+        if (!hasMoreResults()) {
             return;
         }
-        getResult(executionResult, ResultSet.TYPE_FORWARD_ONLY, (activeResult != null) ? activeResult.isBinaryProtocol() : false);
+        getResult(executionResult, ResultSet.TYPE_FORWARD_ONLY, (activeResult != null) ? activeResult.isBinaryProtocol() : moreResultsTypeBinary);
     }
 
     @Override

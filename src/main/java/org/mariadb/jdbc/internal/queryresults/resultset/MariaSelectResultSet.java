@@ -70,10 +70,7 @@ import org.mariadb.jdbc.internal.util.dao.QueryException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.SQLWarning;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
@@ -92,6 +89,7 @@ public class MariaSelectResultSet extends AbstractSelectResultSet {
     protected int fetchSize;
     protected int resultSetScrollType;
     protected MariaSelectResultSet moreResult;
+    public boolean callableResult = false;
 
     /**
      * Create Streaming resultset.
@@ -239,14 +237,15 @@ public class MariaSelectResultSet extends AbstractSelectResultSet {
      * @param resultSetScrollType  one of the following <code>ResultSet</code> constants: <code>ResultSet.TYPE_FORWARD_ONLY</code>,
      * <code>ResultSet.TYPE_SCROLL_INSENSITIVE</code>, or <code>ResultSet.TYPE_SCROLL_SENSITIVE</code>
      * @param fetchSize current fetch size
+     * @param canBeCallableResult is this resultset can be an callable output result ? (permit to avoid read the oef ok packet)
      * @return an instance of MariaSelectResultSet
      * @throws IOException    when something goes wrong while reading/writing from the server
      * @throws QueryException if there is an actual active result on the current connection
      */
-    public static MariaSelectResultSet createResult(Statement statement, ResultSetPacket packet,
-                                                    ReadPacketFetcher packetFetcher, Protocol protocol, boolean binaryProtocol,
-                                                    int resultSetScrollType, int fetchSize) throws IOException, QueryException {
-
+    public static MariaSelectResultSet createResult(Statement statement, ResultSetPacket packet, ReadPacketFetcher packetFetcher,
+                                                    Protocol protocol, boolean binaryProtocol, int resultSetScrollType, int fetchSize,
+                                                    boolean canBeCallableResult) throws IOException, QueryException {
+        boolean callableResult = false;
         if (protocol.getActiveResult() != null) {
             throw new QueryException("There is an active result set on the current connection, "
                     + "which must be closed prior to opening a new one");
@@ -264,11 +263,15 @@ public class MariaSelectResultSet extends AbstractSelectResultSet {
         if (!ReadUtil.eofIsNext(bufferEof)) {
             throw new QueryException("Packets out of order when reading field packets, expected was EOF stream. "
                     + "Packet contents (hex) = " + MasterProtocol.hexdump(bufferEof, 0));
+        } else if (canBeCallableResult) {
+            EndOfFilePacket endOfFilePacket = new EndOfFilePacket(bufferEof);
+            callableResult = (endOfFilePacket.getStatusFlags() & ServerStatus.PS_OUT_PARAMETERS) != 0;
         }
 
         MariaSelectResultSet mariaSelectResultset = new MariaSelectResultSet(ci, statement, protocol, packetFetcher,
                 binaryProtocol, resultSetScrollType, fetchSize);
         mariaSelectResultset.initFetch();
+        mariaSelectResultset.setCallableResult(callableResult);
         return mariaSelectResultset;
     }
 
@@ -347,7 +350,7 @@ public class MariaSelectResultSet extends AbstractSelectResultSet {
                 protocol.setActiveResult(null);
             }
             protocol.setHasWarnings(endOfFilePacket.getWarningCount() > 0);
-            protocol.setMoreResults((endOfFilePacket.getStatusFlags() & ServerStatus.MORE_RESULTS_EXISTS) != 0);
+            protocol.setMoreResults((endOfFilePacket.getStatusFlags() & ServerStatus.MORE_RESULTS_EXISTS) != 0, binaryProtocol);
             protocol = null;
             packetFetcher = null;
             isEof = true;
@@ -386,7 +389,7 @@ public class MariaSelectResultSet extends AbstractSelectResultSet {
                                 protocol.setActiveResult(null);
                             }
                             protocol.setHasWarnings(endOfFilePacket.getWarningCount() > 0);
-                            protocol.setMoreResults((endOfFilePacket.getStatusFlags() & ServerStatus.MORE_RESULTS_EXISTS) != 0);
+                            protocol.setMoreResults((endOfFilePacket.getStatusFlags() & ServerStatus.MORE_RESULTS_EXISTS) != 0, binaryProtocol);
                             protocol = null;
                             packetFetcher = null;
                             isEof = true;
@@ -676,5 +679,13 @@ public class MariaSelectResultSet extends AbstractSelectResultSet {
         if (isClosed()) {
             throw new SQLException("Operation not permit on a closed resultset", "HY000");
         }
+    }
+
+    public boolean isCallableResult() {
+        return callableResult;
+    }
+
+    public void setCallableResult(boolean callableResult) {
+        this.callableResult = callableResult;
     }
 }

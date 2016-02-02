@@ -15,10 +15,7 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * Base util class.
@@ -38,8 +35,9 @@ public class BaseTest {
     protected static String parameters;
     protected static boolean testSingleHost;
     protected static Connection sharedConnection;
-    private static List<String> tempTableList = new ArrayList<>();
-    private static List<String> tempProcedureList = new ArrayList<>();
+    private static Deque<String> tempTableList = new ArrayDeque<>();
+    private static Deque<String> tempProcedureList = new ArrayDeque<>();
+    private static Deque<String> tempFunctionList = new ArrayDeque<>();
     private static TcpProxy proxy = null;
 
     @Rule
@@ -134,7 +132,7 @@ public class BaseTest {
 
         setUri();
 
-        sharedConnection = DriverManager.getConnection(connUri);
+        sharedConnection = DriverManager.getConnection(url);
     }
 
 
@@ -154,26 +152,38 @@ public class BaseTest {
         if (!sharedConnection.isClosed()) {
             if (!tempTableList.isEmpty()) {
                 Statement stmt = sharedConnection.createStatement();
-                for (String tableName : tempTableList) {
+                String tableName;
+                while ( (tableName = tempTableList.poll()) != null) {
                     try {
                         stmt.execute("DROP TABLE IF EXISTS " + tableName);
                     } catch (SQLException e) {
                         //eat exception
                     }
                 }
-                tempTableList.clear();
             }
             if (!tempProcedureList.isEmpty()) {
                 Statement stmt = sharedConnection.createStatement();
-                for (String procedureName : tempProcedureList) {
+                String procedureName;
+                while ( (procedureName = tempProcedureList.poll()) != null) {
                     try {
                         stmt.execute("DROP procedure IF EXISTS " + procedureName);
                     } catch (SQLException e) {
                         //eat exception
                     }
                 }
-                tempTableList.clear();
             }
+            if (!tempFunctionList.isEmpty()) {
+                Statement stmt = sharedConnection.createStatement();
+                String functionName;
+                while ( (functionName = tempFunctionList.poll()) != null) {
+                    try {
+                        stmt.execute("DROP FUNCTION IF EXISTS " + functionName);
+                    } catch (SQLException e) {
+                        //eat exception
+                    }
+                }
+            }
+
         }
         try {
             sharedConnection.close();
@@ -224,6 +234,21 @@ public class BaseTest {
         tempProcedureList.add(name);
 
     }
+
+    /**
+     * Create function that will be delete on end of test.
+     * @param name function name
+     * @param body function body
+     * @throws SQLException exception
+     */
+    public static void createFunction(String name, String body) throws SQLException {
+        Statement stmt = sharedConnection.createStatement();
+        stmt.execute("drop function IF EXISTS " + name);
+        stmt.execute("create function " + name + body);
+        tempProcedureList.add(name);
+
+    }
+
 
     @Before
     public void init() throws SQLException {
@@ -485,4 +510,17 @@ public class BaseTest {
         statement.close();
     }
 
+    /**
+     * Get row number.
+     * @param tableName table name
+     * @return resultset number in this table
+     * @throws SQLException if error occur
+     */
+    public int getRowCount(String tableName) throws SQLException {
+        ResultSet rs = sharedConnection.createStatement().executeQuery("SELECT COUNT(*) FROM " + tableName);
+        if (rs.next()) {
+            return rs.getInt(1);
+        }
+        throw new SQLException("No table " + tableName + " found");
+    }
 }

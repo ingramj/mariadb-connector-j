@@ -815,19 +815,16 @@ public abstract class AbstractSelectResultSet implements ResultSet {
      * @since 1.2
      */
     public Object getObject(String columnLabel, Map<String, Class<?>> map) throws SQLException {
-        //TODO: implement this
-        throw ExceptionMapper.getFeatureNotSupportedException("Type map getting is not supported");
+        return getObject(findColumn(columnLabel));
     }
 
 
-    public <T> T getObject(int columnIndex, Class<T> arg1) throws SQLException {
-        //TODO: implement this
-        throw ExceptionMapper.getFeatureNotSupportedException("Type getObject getting is not supported");
+    public <T> T getObject(int columnIndex, Class<T> type) throws SQLException {
+        return getValueObject(columnIndex).getObject(type);
     }
 
-    public <T> T getObject(String columnLabel, Class<T> arg1) throws SQLException {
-        //TODO: implement this
-        throw ExceptionMapper.getFeatureNotSupportedException("Type getObject getting is not supported");
+    public <T> T getObject(String columnLabel, Class<T> type) throws SQLException {
+        return getObject(findColumn(columnLabel), type);
     }
 
     /**
