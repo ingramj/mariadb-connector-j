@@ -580,12 +580,12 @@ public class CallableStatementTest extends BaseTest {
         sharedConnection.prepareCall("{call testDefinerCallableStatement(?)}").close();
     }
 
+
     @Test
     public void testProcedureComment() throws Exception {
         createProcedure("testProcedureComment", "(a INT, b VARCHAR(32)) BEGIN SELECT CONCAT(CONVERT(a, CHAR(50)), b); END");
-
-        try (CallableStatement callableStatement = sharedConnection.prepareCall("{ call /*comment ? */ testj.testProcedureComment(?, "
-                + "/*comment ? */?) #comment ? }")) {
+        String query = "{  call    testj.testProcedureComment(?, ?) /*comment ? */ }";
+        try (CallableStatement callableStatement = sharedConnection.prepareCall(query)) {
             assertTrue(callableStatement.toString().indexOf("/*") != -1);
             callableStatement.setInt(1, 1);
             callableStatement.setString(2, " a");
@@ -883,11 +883,10 @@ public class CallableStatementTest extends BaseTest {
         createFunction("testFunctionComment", "() RETURNS BIGINT DETERMINISTIC MODIFIES SQL DATA BEGIN DECLARE max_value BIGINT; "
                 + "RETURN 1; END;");
 
-        try (CallableStatement callable = sharedConnection.prepareCall("{? = /*comment?*/ call /*comment2?*/ testFunctionComment() /*comment3?*/ } #comment4 ?")) {
+        try (CallableStatement callable = sharedConnection.prepareCall("{? = call testFunctionComment() /*comment3?*/ }")) {
             callable.registerOutParameter(1, Types.BIGINT);
             callable.executeUpdate();
-            assertEquals("SELECT testFunctionComment()  /*comment?*/ /*comment2?*/ /*comment3?*/#comment4 ?",
-                    callable.toString());
+            assertEquals("select testFunctionComment()  /*comment3?*/", callable.toString());
         }
     }
 

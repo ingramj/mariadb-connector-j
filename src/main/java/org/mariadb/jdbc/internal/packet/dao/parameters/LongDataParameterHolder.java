@@ -69,7 +69,9 @@ public abstract class LongDataParameterHolder extends ParameterHolder {
     }
 
     @Override
-    public boolean isNotLongData() { return false;}
+    public boolean isNotLongData() {
+        return false;
+    }
 
     @Override
     public boolean isNullParameter() {

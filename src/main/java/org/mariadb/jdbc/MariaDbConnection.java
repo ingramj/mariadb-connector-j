@@ -81,9 +81,8 @@ public final class MariaDbConnection implements Connection {
      * {[?=]call[(arg1,..,,argn)]}
      */
     private static Pattern CALLABLE_STATEMENT_PATTERN =
-            Pattern.compile("^\\s*(\\?\\s*=)?(\\s*\\/\\*([^\\*]|\\*[^\\/])*\\*\\/)*\\s*call"
-                    + "(\\s*\\/\\*([^\\*]|\\*[^\\/])*\\*\\/)*\\s*((((`[^`]+`)|([^`]+))\\.)?((`[^`]+`)|([^`(]+)))+(\\(.*\\))?"
-                    + "(\\s*\\/\\*([^\\*]|\\*[^\\/])*\\*\\/)*\\s*(#.*)?$",
+            Pattern.compile("^\\s*(\\?\\s*=)?\\s*call\\s*(((((`[^`]+`)|([\\w]+))\\.)?((`[^`]+`)|([\\w(]+)))+(\\(.*\\))?)"
+                    + "(\\s*\\/\\*([^\\*]|\\*[^\\/])*\\*\\/)*?\\s*$",
                     Pattern.CASE_INSENSITIVE);
 
     public MariaDbPooledConnection pooledConnection;
@@ -462,25 +461,15 @@ public final class MariaDbConnection implements Connection {
      */
     public CallableStatement prepareCall(final String sql) throws SQLException {
         checkConnection();
-
-        String query = Utils.nativeSql(sql, noBackslashEscapes);
-        Matcher matcher = CALLABLE_STATEMENT_PATTERN.matcher(query);
-        if (!matcher.matches()) {
+        if (sql == null) {
             throw new SQLSyntaxErrorException(
-                    "invalid callable syntax. must be like {? = call <procedure/function name>[(?,?, ...)]}\n but was : "
-                            + query);
+                    "invalid callable syntax. must be like {? = call <procedure/function name>[(?,?, ...)]}\n but was null");
         }
-        boolean isFunction = (matcher.group(1) != null);
-        String databaseAndProcedure = matcher.group(6);
-        String database = matcher.group(8);
-        String procedureName = matcher.group(11);
-        String arguments = matcher.group(14);
-
-        if (database != null && options.cacheCallableStmts) {
-            if (callableStatementCache.containsKey(new CallableStatementCacheKey(database, query))) {
+        if (getDatabase() != null && options.cacheCallableStmts && sql.length() < 1024) {
+            if (callableStatementCache.containsKey(new CallableStatementCacheKey(getDatabase(), sql))) {
                 //Clone to avoid side effect like having some open resultset.
                 try {
-                    CallableStatement callableStatement = callableStatementCache.get(new CallableStatementCacheKey(getDatabase(), query));
+                    CallableStatement callableStatement = callableStatementCache.get(new CallableStatementCacheKey(getDatabase(), sql));
                     if (callableStatement != null) {
                         return ((CloneableCallableStatement) callableStatement).clone();
                     }
@@ -488,14 +477,13 @@ public final class MariaDbConnection implements Connection {
                     cloneNotSupportedException.printStackTrace();
                 }
             }
-            CallableStatement callableStatement = createNewCallableStatement(matcher, query, procedureName, isFunction, databaseAndProcedure, database,
-                    arguments);
-            callableStatementCache.put(new CallableStatementCacheKey(database, query), callableStatement);
+
+            CallableStatement callableStatement = createNewCall(sql);
+            callableStatementCache.put(new CallableStatementCacheKey(getDatabase(), sql), callableStatement);
             return callableStatement;
         }
-        return createNewCallableStatement(matcher, query, procedureName, isFunction, databaseAndProcedure, database, arguments);
+        return createNewCall(sql);
     }
-
 
     /**
      * Creates a <code>CallableStatement</code> object that will generate <code>ResultSet</code> objects with the given type and concurrency. This
@@ -545,19 +533,29 @@ public final class MariaDbConnection implements Connection {
         return prepareCall(sql);
     }
 
-    private CallableStatement createNewCallableStatement(Matcher matcher, String query, String procedureName, boolean isFunction, String databaseAndProcedure,
-                                                         String database, String arguments) throws SQLException {
-        if (arguments == null) {
-            arguments = "()";
+    private CallableStatement createNewCall(final String sql) throws SQLException {
+        String escapedSql = Utils.nativeSql(sql, noBackslashEscapes);
+        Matcher matcher = CALLABLE_STATEMENT_PATTERN.matcher(escapedSql);
+        if (!matcher.matches()) {
+            throw new SQLSyntaxErrorException(
+                    "invalid callable syntax. must be like {(? = ) call <procedure/function name>([?,?, ...]) /*comment*/ }\n but was : "
+                            + sql);
         }
+
+        boolean isFunction = (matcher.group(1) != null);
+        String databaseAndProcedureAndArgs = matcher.group(2);
+        String database = matcher.group(5);
+        String procedureName = matcher.group(8);
+        String parameters = matcher.group(11);
+        String comments = ((matcher.group(12) == null) ? "" : matcher.group(12));
+
+        String query;
         if (isFunction) {
-            String comment = ((matcher.group(2) == null) ? "" : matcher.group(2))
-                           + ((matcher.group(4) == null) ? "" : matcher.group(4))
-                           + ((matcher.group(15) == null) ? "" : matcher.group(15))
-                           + ((matcher.group(17) == null) ? "" : matcher.group(17));
-            return new MariaDbFunctionStatement(this, database, databaseAndProcedure, arguments, comment);
+            query = "select " + databaseAndProcedureAndArgs + ((parameters == null) ? "()" : "") + " " + comments;
+            return new MariaDbFunctionStatement(query, this, database, procedureName);
         } else {
-            return new MariaDbProcedureStatement(query, this, procedureName, database, arguments);
+            query = "call " + databaseAndProcedureAndArgs + ((parameters == null) ? "()" : "") + " " + comments;
+            return new MariaDbProcedureStatement(query, this, database, procedureName);
         }
     }
 

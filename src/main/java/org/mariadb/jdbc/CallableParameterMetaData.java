@@ -155,9 +155,9 @@ public class CallableParameterMetaData implements ParameterMetaData {
     private String[] queryMetaInfos(boolean isFunction) throws SQLException {
         PreparedStatement preparedStatement;
         if (database != null) {
-            preparedStatement = con.prepareStatement("select param_list,returns, db, type from mysql.proc where db=? and name=?");
+            preparedStatement = con.prepareStatement("select param_list, returns, db, type from mysql.proc where db=? and name=?");
         } else {
-            preparedStatement = con.prepareStatement("select param_list,returns, db, type from mysql.proc where db=DATABASE() and name=?");
+            preparedStatement = con.prepareStatement("select param_list, returns, db, type from mysql.proc where db=DATABASE() and name=?");
         }
 
         ResultSet rs = null;
@@ -172,7 +172,7 @@ public class CallableParameterMetaData implements ParameterMetaData {
             }
             rs = preparedStatement.executeQuery();
             if (!rs.next()) {
-                throw new SQLException((isFunction ? "function" : "procedure") + " `" + name + "` does not exist");
+                throw new SQLException((isFunction ? "function" : "procedure") + " " + name + " does not exist");
             }
             paramList = rs.getString(1);
             functionReturn = rs.getString(2);

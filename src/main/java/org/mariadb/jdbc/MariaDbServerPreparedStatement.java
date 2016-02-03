@@ -153,13 +153,11 @@ public class MariaDbServerPreparedStatement extends AbstractMariaDbPrepareStatem
     }
 
     protected void setParameter(final int parameterIndex, final ParameterHolder holder) throws SQLException {
-
-        try {
-            currentParameterHolder[parameterIndex - 1] = holder;
-        } catch (ArrayIndexOutOfBoundsException a) {
+        if (parameterIndex < 0 || parameterIndex > currentParameterHolder.length) {
             throw ExceptionMapper.getSqlException("Could not set parameter at position " + parameterIndex
                     + ", parameter length is " + parameterCount);
         }
+        currentParameterHolder[parameterIndex - 1] = holder;
     }
 
     protected ParameterHolder getCurrentParameterHolder(final int parameterIndex) {

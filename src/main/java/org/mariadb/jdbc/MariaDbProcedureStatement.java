@@ -62,20 +62,19 @@ import java.util.ArrayList;
 public class MariaDbProcedureStatement extends AbstractCallableProcedureStatement implements CloneableCallableStatement {
 
     private MariaSelectResultSet outputResultSet = null;
+    private static final NullParameter NULL_PARAMETER = new NullParameter();
 
     /**
      * Specific implementation of CallableStatement to handle function call, represent by call like
      * {?= call procedure-name[(arg1,arg2, ...)]}.
      * @param query query
      * @param connection current connection
-     * @param procedureName procedure name
      * @param database database
-     * @param arguments function args
+     * @param procedureName procedure name
      * @throws SQLException exception
      */
     public MariaDbProcedureStatement(String query, MariaDbConnection connection,
-                                     String procedureName, String database,
-                                     String arguments) throws SQLException {
+                                     String database, String procedureName) throws SQLException {
         super(connection, query, ResultSet.TYPE_FORWARD_ONLY);
         this.parameterMetadata = new CallableParameterMetaData(connection, database, procedureName, false);
         if (parameterCount == 0) {
@@ -188,10 +187,9 @@ public class MariaDbProcedureStatement extends AbstractCallableProcedureStatemen
         //Set value for OUT parameters
         for (int index = 0; index < params.size() ; index++) {
             if (!params.get(index).isInput) {
-                super.setParameter(index + 1, new NullParameter());
+                super.setParameter(index + 1, NULL_PARAMETER);
             }
         }
-        validParameters();
     }
 
     @Override

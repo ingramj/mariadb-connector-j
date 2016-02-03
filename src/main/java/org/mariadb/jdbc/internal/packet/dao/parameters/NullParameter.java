@@ -60,7 +60,7 @@ public class NullParameter extends ParameterHolder {
     private MariaDbType type;
 
     public NullParameter() {
-        type = MariaDbType.NULL;
+        this.type = MariaDbType.NULL;
     }
 
     public NullParameter(MariaDbType type) {
@@ -86,8 +86,9 @@ public class NullParameter extends ParameterHolder {
     }
 
     @Override
-    public boolean isNotLongData() { return false;}
-
+    public boolean isNotLongData() {
+        return false;
+    }
 
     public MariaDbType getMariaDbType() {
         return type;

@@ -66,17 +66,15 @@ public class MariaDbFunctionStatement extends AbstractCallableFunctionStatement 
     /**
      * Specific implementation of CallableStatement to handle function call, represent by call like
      * {?= call procedure-name[(arg1,arg2, ...)]}.
+     * @param query query
      * @param connection current connection
      * @param databaseName database name
      * @param procedureName function name
-     * @param arguments function args
-     * @param comments comments
      * @throws SQLException exception
      */
-    public MariaDbFunctionStatement(MariaDbConnection connection, String databaseName, String procedureName, String arguments, String comments)
+    public MariaDbFunctionStatement(String query, MariaDbConnection connection, String databaseName, String procedureName)
             throws SQLException {
-        super(connection, "SELECT " + procedureName + ((arguments == null) ? "()" : arguments + " " + comments),
-                ResultSet.TYPE_FORWARD_ONLY);
+        super(connection, query, ResultSet.TYPE_FORWARD_ONLY);
         parameterMetadata = new CallableParameterMetaData(connection, databaseName, procedureName, true);
         super.initFunctionData(getParameterCount() + 1);
     }
