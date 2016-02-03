@@ -197,7 +197,12 @@ public class CallableStatementTest extends BaseTest {
     @Test
     public void testMetaCatalogNoAccessToProcedureBodies() throws Exception {
         Statement statement = sharedConnection.createStatement();
-        statement.execute("CREATE USER IF NOT EXISTS 'test_jdbc'@'localhost' IDENTIFIED BY 'test_jdbc'");
+        try {
+            statement.execute("DROP USER 'test_jdbc'@'localhost'");
+        } catch (SQLException e) {
+            //eat exception
+        }
+        statement.execute("CREATE USER 'test_jdbc'@'localhost' IDENTIFIED BY 'test_jdbc'");
         statement.execute("GRANT ALL PRIVILEGES ON testj.* TO 'test_jdbc'@'localhost' IDENTIFIED BY 'test_jdbc' WITH GRANT OPTION");
         Properties properties = new Properties();
         properties.put("user", "test_jdbc");
@@ -239,6 +244,7 @@ public class CallableStatementTest extends BaseTest {
                 fail();
             }
         }
+        statement.execute("DROP USER 'test_jdbc'@'localhost'");
     }
 
     @Test
