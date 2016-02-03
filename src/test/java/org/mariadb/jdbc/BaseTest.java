@@ -328,6 +328,13 @@ public class BaseTest {
         return openConnection(connUri + additionnallParameters, null);
     }
 
+    /**
+     * Permit to reconstruct a connection.
+     * @param uri base uri
+     * @param info additionnal properties
+     * @return A connection
+     * @throws SQLException is any error occur
+     */
     public Connection openConnection(String uri, Properties info) throws SQLException {
         if (info == null) {
             return DriverManager.getConnection(uri);
