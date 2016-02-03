@@ -328,7 +328,7 @@ public class BaseTest {
         return openConnection(connUri + additionnallParameters, null);
     }
 
-    private Connection openConnection(String uri, Properties info) throws SQLException {
+    public Connection openConnection(String uri, Properties info) throws SQLException {
         if (info == null) {
             return DriverManager.getConnection(uri);
         } else {

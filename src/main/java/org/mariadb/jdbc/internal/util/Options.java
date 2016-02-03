@@ -101,6 +101,7 @@ public class Options {
     public boolean useReadAheadInput;
     public boolean cacheCallableStmts;
     public Integer callableStmtCacheSize;
+    public boolean noAccessToProcedureBodies;
 
     //HA options
     public boolean assureReadOnly;
@@ -166,6 +167,7 @@ public class Options {
                 + ", useReadAheadInput=" + useReadAheadInput
                 + ", cacheCallableStmts=" + cacheCallableStmts
                 + ", callableStmtCacheSize=" + callableStmtCacheSize
+                + ", noAccessToProcedureBodies=" + noAccessToProcedureBodies
                 + "}";
     }
 
@@ -326,6 +328,10 @@ public class Options {
         if (callableStmtCacheSize != null ? !callableStmtCacheSize.equals(options.callableStmtCacheSize) : options.callableStmtCacheSize != null) {
             return false;
         }
+        if (noAccessToProcedureBodies != options.noAccessToProcedureBodies) {
+            return false;
+        }
+
         return !(prepStmtCacheSqlLimit != null ? !prepStmtCacheSqlLimit.equals(options.prepStmtCacheSqlLimit)
                 : options.prepStmtCacheSqlLimit != null);
 

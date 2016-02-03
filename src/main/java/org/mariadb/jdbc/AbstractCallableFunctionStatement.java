@@ -60,6 +60,7 @@ import java.io.Reader;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.*;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Map;
 
@@ -109,6 +110,9 @@ public abstract class AbstractCallableFunctionStatement extends MariaDbClientPre
         }
         // the query was in the form {?=call function()}, so the first parameter is always output
         params[0].isOutput = true;
+        if (protocol.getOptions().noAccessToProcedureBodies) {
+            parameterMetadata.setParams(Arrays.asList(params));
+        }
     }
 
     protected abstract MariaSelectResultSet getResult() throws SQLException;

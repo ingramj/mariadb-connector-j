@@ -339,7 +339,13 @@ public enum DefaultOptions {
      * This sets the number of callable statements that the driver will cache per VM if "cacheCallableStmts" is enabled.
      * default to 150.
      */
-    CALLABLE_STMT_CACHE_SIZE("callableStmtCacheSize", new Integer(150), new Integer(0), Integer.MAX_VALUE, "1.4.0");
+    CALLABLE_STMT_CACHE_SIZE("callableStmtCacheSize", new Integer(150), new Integer(0), Integer.MAX_VALUE, "1.4.0"),
+
+    /**
+     * Indicate to the driver that user don't have access to procedure metadata informations (mysql.proc table).
+     * ParameterMetaData will be basic, and access to parameters by name will throw exception.
+     */
+    NO_ACCESS_TO_PROCEDURE_BODIES("noAccessToProcedureBodies", Boolean.FALSE, "1.4.0");
 
     protected final String name;
     protected final Object objType;

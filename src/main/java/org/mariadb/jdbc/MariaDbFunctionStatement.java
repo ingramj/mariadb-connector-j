@@ -75,7 +75,8 @@ public class MariaDbFunctionStatement extends AbstractCallableFunctionStatement 
     public MariaDbFunctionStatement(String query, MariaDbConnection connection, String databaseName, String procedureName)
             throws SQLException {
         super(connection, query, ResultSet.TYPE_FORWARD_ONLY);
-        parameterMetadata = new CallableParameterMetaData(connection, databaseName, procedureName, true);
+        parameterMetadata = new CallableParameterMetaData(connection, databaseName, procedureName, true,
+                protocol.getOptions().noAccessToProcedureBodies);
         super.initFunctionData(getParameterCount() + 1);
     }
 

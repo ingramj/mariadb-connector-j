@@ -135,6 +135,9 @@ public abstract class AbstractCallableProcedureStatement extends MariaDbServerPr
      * @throws SQLException exception
      */
     private int nameToIndex(String parameterName) throws SQLException {
+        if (protocol.getOptions().noAccessToProcedureBodies) {
+            throw new SQLException("Parameter 'noAccessToProcedureBodies' is set, disabling access to parameter by name.");
+        }
         parameterMetadata.readMetadataFromDbIfRequired();
         for (int i = 1; i <= parameterMetadata.getParameterCount(); i++) {
             String name = parameterMetadata.getName(i);
@@ -154,6 +157,9 @@ public abstract class AbstractCallableProcedureStatement extends MariaDbServerPr
      * @throws SQLException exception
      */
     private int nameToOutputIndex(String parameterName) throws SQLException {
+        if (protocol.getOptions().noAccessToProcedureBodies) {
+            throw new SQLException("Parameter 'noAccessToProcedureBodies' is set, disabling access to parameter by name.");
+        }
         parameterMetadata.readMetadataFromDbIfRequired();
         for (int i = 0; i < parameterMetadata.getParameterCount(); i++) {
             String name = parameterMetadata.getName(i + 1);

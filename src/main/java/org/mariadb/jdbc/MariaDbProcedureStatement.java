@@ -76,7 +76,8 @@ public class MariaDbProcedureStatement extends AbstractCallableProcedureStatemen
     public MariaDbProcedureStatement(String query, MariaDbConnection connection,
                                      String database, String procedureName) throws SQLException {
         super(connection, query, ResultSet.TYPE_FORWARD_ONLY);
-        this.parameterMetadata = new CallableParameterMetaData(connection, database, procedureName, false);
+        this.parameterMetadata = new CallableParameterMetaData(connection, database, procedureName, false,
+                protocol.getOptions().noAccessToProcedureBodies);
         if (parameterCount == 0) {
             currentParameterHolder = new ParameterHolder[parameterCount];
         }
@@ -98,6 +99,9 @@ public class MariaDbProcedureStatement extends AbstractCallableProcedureStatemen
 
             for (int index = 0; index < params.size(); index++) {
                 outputParameterMapper[index] = params.get(index).isOutput ? currentOutputMapper++ : -1;
+            }
+            if (protocol.getOptions().noAccessToProcedureBodies) {
+                parameterMetadata.setParams(params);
             }
         }
     }

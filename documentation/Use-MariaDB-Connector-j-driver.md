@@ -101,6 +101,8 @@ Following options are currently supported.
 |<a name="jdbcCompliantTruncation">jdbcCompliantTruncation</a>| Truncation error ("Data truncated for column '%' at row %", "Out of range value for column '%' at row %") will be thrown as error, and not as warning.<br/>*Default: true. Since 1.4.0*| 
 |<a name="cacheCallableStmts">cacheCallableStmts</a>| enable/disable callable Statement cache<br/>*Default: true. Since 1.4.0*| 
 |<a name="callableStmtCacheSize">callableStmtCacheSize</a>| This sets the number of callable statements that the driver will cache per VM if "cacheCallableStmts" is enabled.<br/>*Default: true. Since 1.4.0*| 
+|<a name="noAccessToProcedureBodies">noAccessToProcedureBodies</a>| Indicate to the driver that user don't have access to procedure metadata informations (mysql.proc table).<br/>ParameterMetaData will be basic, and access to parameters by name will throw exception.<br/>*Default: false. Since 1.4.0*| 
+
 
 ### Failover/High availability URL parameters
 
