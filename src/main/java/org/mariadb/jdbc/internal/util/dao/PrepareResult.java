@@ -83,6 +83,11 @@ public class PrepareResult {
         inCache.set(false);
     }
 
+    //for debug
+    public boolean inCache() {
+        return inCache.get();
+    }
+
     /**
      * Increment share counter.
      * @return true if can be used (is not been deallocate).

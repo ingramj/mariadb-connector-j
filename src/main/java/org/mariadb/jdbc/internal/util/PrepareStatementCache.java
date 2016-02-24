@@ -105,9 +105,9 @@ public final class PrepareStatementCache extends LinkedHashMap<String, PrepareRe
     @Override
     public synchronized PrepareResult put(String key, PrepareResult result) {
         PrepareResult cachedPrepareResult = super.get(key);
-        //if there is already some cached data (and not been deallocate), return existing cached data
-        if (cachedPrepareResult != null && cachedPrepareResult.incrementShareCounter()) {
-            return cachedPrepareResult;
+        //if there is already some cached data (and not been deallocate), don't replace it
+        if (cachedPrepareResult != null) {
+            return null;
         }
         //if no cache data, or been deallocate, put new result in cache
         result.setAddToCache();

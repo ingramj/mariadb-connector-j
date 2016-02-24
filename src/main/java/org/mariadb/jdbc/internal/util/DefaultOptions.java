@@ -321,7 +321,17 @@ public enum DefaultOptions {
     /**
      * Password for the client certificate keystore.
      */
-    CLIENT_CERTIFICATE_KEYSTORE_PASSWORD("clientCertificateKeyStorePassword", "1.3.0");
+    CLIENT_CERTIFICATE_KEYSTORE_PASSWORD("clientCertificateKeyStorePassword", "1.3.0"),
+
+    /**
+     * If set to true, prepare statement on query without parameter will use COM_QUERY protocol,  if not set, use COM_STMT_EXECUTE protocol.
+     */
+    PREPARE_QUERY_WITHOUT_PARAMETER("queryWithoutParameterSendAsText", Boolean.FALSE, "1.3.7"),
+
+    /**
+     * Debug.
+     */
+    DEBUG("debug", Boolean.FALSE, "1.3.7");
 
     protected final String name;
     protected final Object objType;

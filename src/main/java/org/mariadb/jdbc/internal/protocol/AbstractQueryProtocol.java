@@ -141,6 +141,12 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
                 key = new StringBuilder(database).append("-").append(sql).toString();
                 PrepareResult pr = prepareStatementCache.get(key);
                 if (pr != null && pr.incrementShareCounter()) {
+                    if (this.getOptions().debug) {
+                        System.out.println("##### server thread=" + this.getServerThreadId() + " use prepare cache. statementId="
+                                + pr.getStatementId()
+                                + " shareCounter=" + pr.getShareCounter()
+                                + " query=" + sql);
+                    }
                     return pr;
                 }
             }
@@ -183,8 +189,15 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
                 }
                 PrepareResult prepareResult = new PrepareResult(statementId, columns, params);
                 if (urlParser.getOptions().cachePrepStmts && sql != null && sql.length() < urlParser.getOptions().prepStmtCacheSqlLimit) {
-                    PrepareResult cachedPrepareResult = prepareStatementCache.put(key, prepareResult);
-                    return cachedPrepareResult != null ? cachedPrepareResult : prepareResult;
+                    prepareStatementCache.put(key, prepareResult);
+                }
+                if (this.getOptions().debug) {
+                    boolean mustHaveBeenPutInCache = urlParser.getOptions().cachePrepStmts && sql != null
+                            && sql.length() < urlParser.getOptions().prepStmtCacheSqlLimit;
+                    System.out.println("##### server thread=" + this.getServerThreadId() + " put prepare in cache " + prepareResult.inCache()
+                            + "(must have been put " + mustHaveBeenPutInCache
+                            + "). new statementId=" + prepareResult.getStatementId()
+                            + " query=" + sql);
                 }
                 return prepareResult;
             } else {
@@ -551,6 +564,10 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
         checkClose();
         this.moreResults = false;
         try {
+            if (this.getOptions().debug) {
+                System.out.println("##### server thread=" + this.getServerThreadId() + " executePreparedQuery statementid "
+                        + prepareResult.getStatementId());
+            }
             int parameterCount = parameters.length;
             //send binary data in a separate stream
             for (int i = 0; i < parameterCount; i++) {
@@ -595,7 +612,11 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
     public void releasePrepareStatement(String sql, PrepareResult prepareResult) throws QueryException {
         //If prepared cache is enable, the PrepareResult can be shared in many PrepStatement, so synchronised use count indicator will be decrement.
         prepareResult.decrementShareCounter();
-
+        if (this.getOptions().debug) {
+            System.out.println("##### server thread=" + this.getServerThreadId() + " decrementShareCounter for statementid "
+                    + prepareResult.getStatementId()
+                    + " shareCounter=" + prepareResult.getShareCounter());
+        }
         //deallocate from server if not cached
         if (prepareResult.canBeDeallocate()) {
             forceReleasePrepareStatement(prepareResult.getStatementId());
@@ -614,6 +635,9 @@ public class AbstractQueryProtocol extends AbstractConnectProtocol implements Pr
         lock.lock();
         try {
             checkClose();
+            if (this.getOptions().debug) {
+                System.out.println("##### server thread=" + this.getServerThreadId() + "deallocate statementid " + statementId);
+            }
             final SendClosePrepareStatementPacket packet = new SendClosePrepareStatementPacket(statementId);
             try {
                 packet.send(writer);
